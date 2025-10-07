@@ -1,0 +1,17 @@
+<div class="map-wrapper">
+  <google-map
+    height="100%"
+    width="100%"
+    [options]="options"
+  >
+    <map-polyline *ngIf="path.length > 1" [path]="path" [options]="polylineOptions"></map-polyline>
+    <map-marker
+      *ngFor="let m of markers; let i = index"
+      [position]="m"
+      [options]="markerOptions"
+    ></map-marker>
+  </google-map>
+
+  <div class="overlay" *ngIf="loading">Loading route…</div>
+  <div class="overlay error" *ngIf="!loading && error">{{ error }}</div>
+</div>
