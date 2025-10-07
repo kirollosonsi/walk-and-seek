@@ -1,7 +1,9 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { GoogleMap, GoogleMapsModule } from '@angular/google-maps';
+import { Subscription, interval, of } from 'rxjs';
+import { catchError, startWith, switchMap } from 'rxjs/operators';
 
 type Waypoint = { lat: number; lng: number; label?: string };
 type RouteData = { waypoints: Waypoint[] };
@@ -13,7 +15,7 @@ type RouteData = { waypoints: Waypoint[] };
   templateUrl: './map.component.html',
   styleUrl: './map.component.css',
 })
-export class MapComponent {
+export class MapComponent implements OnDestroy {
   @ViewChild(GoogleMap, { static: true }) map?: GoogleMap;
 
   loading = true;
@@ -47,23 +49,45 @@ export class MapComponent {
     clickable: false,
   };
 
+  private pollSub?: Subscription;
+  private lastKey = '';
+
   constructor(private http: HttpClient) {
-    this.http.get<RouteData>('route.json').subscribe({
-      next: (data) => {
-        const points = (data?.waypoints || []).filter(
-          (p) => typeof p.lat === 'number' && typeof p.lng === 'number'
+    this.pollSub = interval(1000)
+      .pipe(
+        startWith(0),
+        switchMap(() =>
+          this.http
+            .get<RouteData>(`route.json?t=${Date.now()}`)
+            .pipe(catchError((err) => {
+              this.error = 'Failed to load route.json';
+              console.error(err);
+              return of(undefined as unknown as RouteData);
+            }))
+        )
+      )
+      .subscribe((data) => {
+        if (!data || !Array.isArray((data as any).waypoints)) {
+          this.loading = false;
+          return;
+        }
+        const points = (data.waypoints || []).filter(
+          (p: any) => typeof p.lat === 'number' && typeof p.lng === 'number'
         );
-        this.markers = points.map((p) => ({ lat: p.lat, lng: p.lng }));
-        this.path = [...this.markers];
-        this.fitToBounds();
+        const key = JSON.stringify(points);
+        if (key !== this.lastKey) {
+          this.markers = points.map((p) => ({ lat: p.lat, lng: p.lng }));
+          this.path = [...this.markers];
+          this.fitToBounds();
+          this.lastKey = key;
+          this.error = undefined;
+        }
         this.loading = false;
-      },
-      error: (err) => {
-        this.error = 'Failed to load route.json';
-        this.loading = false;
-        console.error(err);
-      },
-    });
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
   }
 
   private fitToBounds() {
