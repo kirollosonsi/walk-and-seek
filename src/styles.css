@@ -1,1 +1,11 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global resets for full-screen map */
+html, body {
+  height: 100%;
+}
+body {
+  margin: 0;
+}
+app-root, app-map {
+  display: block;
+  height: 100%;
+}
