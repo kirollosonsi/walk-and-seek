@@ -1,0 +1,21 @@
+  # - task: Bash@3
+  #   displayName: "Bootstrap streams via NatsTester"
+  #   env:
+  #     KUBECONFIG: $(natsKubeconfig.secureFilePath)
+  #   inputs:
+  #     targetType: "inline"
+  #     script: |
+  #       set -euo pipefail
+
+  #       kubectl -n "$(NAMESPACE)" port-forward svc/"$(RELEASE)" 4222:4222 >/tmp/pf.log 2>&1 &
+  #       PF_PID=$!
+  #       trap 'kill $PF_PID 2>/dev/null || true' EXIT
+
+  #       for i in $(seq 1 30); do
+  #         if (echo >/dev/tcp/127.0.0.1/4222) 2>/dev/null; then break; fi
+  #         sleep 1
+  #       done
+
+  #       export NATS_URL="nats://127.0.0.1:4222"
+  #       dotnet run --project $(System.DefaultWorkingDirectory)/src/WearAndCare.NatsTester \
+  #                  --configuration Release -- bootstrap
